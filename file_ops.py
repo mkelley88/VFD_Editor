@@ -27,29 +27,41 @@ class FileOperations:
             return os.path.join(self.base_dir, filename)  # Return full path with base directory
         return None
 
-    def save_file(self, buffer):
-        """Save the buffer to a file."""
+    def save_file(self, buffer, filename=None):
+        """Save only the used part of the buffer to a file and display the number of bytes written."""
         self.vfd.clear()
-        filename = self.get_filename_from_user("Save file as: ")
+
+        # Calculate the used portion of the buffer
+        used_buffer = buffer[:buffer.find(0)]  # Find the first zero byte and slice up to that point
+
+        if not filename:
+            filename = self.get_filename_from_user("Save file as: ")
+
         if filename:
             try:
                 with open(filename, 'w') as f:
-                    f.write(buffer.decode('ascii'))
+                    bytes_written = f.write(used_buffer.decode('ascii'))  # Write only the used part
                 self.vfd.write(f"File saved as {os.path.basename(filename)}.")
+                self.vfd.set_cursor(40)
+                self.vfd.write(f"{bytes_written} bytes written.")
                 return filename
             except (IOError, OSError) as e:
                 self.vfd.write(f"Error saving file: {str(e)}")
         return None
 
+
     def open_file(self, buffer, filename=None):
         """Open a file and load its contents into the buffer."""
         self.vfd.clear()
-        filename = self.get_filename_from_user("Open file: ")
+        if not filename:
+            filename = self.get_filename_from_user("Open file: ")
+        
         if filename and self.file_exists(filename):
             try:
                 with open(filename, 'r') as f:
                     content = f.read()
                 buffer[:] = bytearray(content.encode('ascii'))
+                self.vfd.clear()
                 self.vfd.write(f"Loaded {os.path.basename(filename)}.")
                 return filename
             except (IOError, OSError) as e:
@@ -91,7 +103,7 @@ class FileOperations:
                 selected_file = os.path.join(self.base_dir, files[index])
                 self.vfd.clear()
                 self.vfd.write(f"Selected: {files[index]}")
-                self.open_file(buffer, selected_file)
+                return self.open_file(buffer, selected_file)  # Open the selected file
             elif key == "KEY_UP":  # Move selection up
                 index = (index - 1) % total_files  # Wrap around if at the top
             elif key == "KEY_DOWN":  # Move selection down

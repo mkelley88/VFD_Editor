@@ -1,13 +1,9 @@
 # VFDEditor.py
 # Main logic for handling the text buffer and integrating Keyboard input for Raspberry Pi Zero W
-
+import time
 from vfd import VFD  # Import VFD display functions
 from file_ops import FileOperations  # Import FileOperations module
 from keyboard import KeyboardInput  # Import Keyboard input module
-
-# import RPi.GPIO as GPIO
-# import time
-
 
 class VFDWordProcessor:
     """This class represents a word processor for VFD (Vacuum Fluorescent Display) technology."""
@@ -47,13 +43,20 @@ class VFDWordProcessor:
             if self.keyboard_input.control_pressed:
                 print(key)
                 if key == "s":
-                    self.save_file(self.buffer)  # Trigger save function
+                    self.save_file()  # Trigger save function
                     continue
                 elif key == "o":
-                    self.open_file(self.buffer)  # Trigger open function
+                    self.open_file()  # Trigger open function
                     display_needs_update = True  # File opened, update needed
+                    continue
                 elif key == "O":
-                    self.file_ops.choose_file_from_list(buffer)  # Trigger open list function
+                    self.file_ops.choose_file_from_list(self.buffer)  # Trigger open list function
+                    display_needs_update = True  # File opened, update needed
+                    continue
+                elif key == "`":
+                    self.vfd.clear()  # Clear the screen
+                    self.vfd.write(f"File: {self.open_filename}")    # Display file name
+                    time.sleep(2)      # Wait for 2 seconds
                     display_needs_update = True  # File opened, update needed
                     continue
 
@@ -172,16 +175,20 @@ class VFDWordProcessor:
 
     def update_display(self):
         """Update the VFD display based on the buffer."""
+        if self.open_filename:  
+            print(f"File: ", self.open_filename)
+        else:
+            print(f"File: None")
         visible_text = self.buffer[self.visible_start : self.visible_end].decode(
             "ascii", "ignore"
         )
         self.vfd.clear()
         self.vfd.write(f"{visible_text:<80}")  # Write the visible text to VFD
         self.vfd.set_cursor(self.cursor_pos)
-
     def save_file(self):
         """Save the buffer to a file."""
-        self.open_filename = self.file_ops.save_file(self.buffer)
+        self.open_filename = self.file_ops.save_file(self.buffer, self.open_filename)
+
 
     def open_file(self):
         """Open a file and load it into the buffer."""
