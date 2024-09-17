@@ -164,15 +164,22 @@ class VFDWordProcessor:
 
     def move_cursor_down(self):
         """Move the cursor down by 1 row."""
-        if self.visible_end < len(self.buffer):
+        buffer_size = self.calculate_used_buffer()  # Get the size of the used portion of the buffer
+
+        if self.visible_end + 40 <= buffer_size:  # Check if we can safely move down
             self.visible_start += 40
             self.visible_end += 40
+        elif self.visible_end < buffer_size:  # If we're near the end but can't do a full row move
+            # Adjust to the maximum valid visible window
+            self.visible_start = max(0, buffer_size - 40)
+            self.visible_end = buffer_size
         else:
-            self.buffer_pos = min(
-                len(self.buffer), self.buffer_pos + 40
-            )  # Move the cursor to the end of the buffer
-            self.update_cursor_position()
+            return  # Do nothing if we're already at the end of the buffer
+
+        self.buffer_pos = min(buffer_size, self.buffer_pos + 40)  # Move the cursor down
+        self.update_cursor_position()
         self.update_display()
+
 
     def move_cursor_left(self):
         """Move the cursor left by 1 column."""
@@ -210,32 +217,37 @@ class VFDWordProcessor:
         """Update the VFD display by replacing newline characters with '`' inline."""
         visible_text = ""
 
-        # Loop through the visible part of the buffer
-        for i in range(self.visible_start, self.visible_end):
+        # Loop through the visible part of the buffer, but ensure we don't go out of bounds
+        buffer_size = self.calculate_used_buffer()  # Calculate the used part of the buffer
+        for i in range(self.visible_start, min(self.visible_end, buffer_size)):
             char = self.buffer[i]
             if char == ord("\n"):
                 visible_text += "`"  # Display '`' in place of the newline character
             else:
-                visible_text += (
-                    chr(char) if char != 0 else " "
-                )  # Convert byte to character or space
+                visible_text += chr(char) if char != 0 else " "  # Convert byte to character or space
+
+        # If the visible_text is shorter than 80 characters, pad it with spaces
+        visible_text = f"{visible_text:<80}"
 
         self.vfd.clear()
-        self.vfd.write(
-            f"{visible_text:<80}"
-        )  # Ensure the display always shows 80 characters
+        self.vfd.write(visible_text)
         self.vfd.set_cursor(self.cursor_pos)
+
 
     def save_file(self):
         """Save the buffer to a file."""
         self.open_filename = self.file_ops.save_file(self.buffer, self.open_filename)
         self.buffer_altered = False  # Reset buffer_altered flag after saving
+        time.sleep(2)
+        self.update_display()
 
     def open_file(self):
         """Open a file and load it into the buffer."""
         self.open_filename = self.file_ops.open_file(self.buffer)
         self.buffer_pos = self.calculate_used_buffer()  # Reset buffer position
         self.buffer_altered = False  # Reset buffer_altered after opening a file
+        time.sleep(2)
+        self.update_display()
 
     def cleanup(self):
         """Cleanup resources before quitting."""

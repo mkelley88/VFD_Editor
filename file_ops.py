@@ -64,7 +64,7 @@ class FileOperations:
                     )  # Write only the used part
                 self.vfd.write(f"File saved as {os.path.basename(filename)}.")
                 self.vfd.set_cursor(40)
-                self.vfd.write(f"{bytes_written} bytes written.")
+                self.vfd.write(f"{bytes_written} bytes written")
                 return filename
             except (IOError, OSError) as e:
                 self.vfd.write(f"Error saving file: {str(e)}")
@@ -82,7 +82,7 @@ class FileOperations:
                     content = f.read()
                 buffer[:] = bytearray(content.encode("ascii"))
                 self.vfd.clear()
-                self.vfd.write(f"Loaded {os.path.basename(filename)}.")
+                self.vfd.write(f"Loaded {os.path.basename(filename)}")
                 return filename
             except (IOError, OSError) as e:
                 self.vfd.write(f"Error loading file: {str(e)}")
