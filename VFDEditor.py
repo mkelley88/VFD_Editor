@@ -96,15 +96,12 @@ class VFDWordProcessor:
                 display_needs_update = False
 
 
-
     def insert_char(self, char):
         """Insert a character into the buffer based on the current mode (insert/overwrite)."""
         if self.insert_mode:
             # Insert mode: Shift the buffer content to the right
-            if (
-                self.buffer_pos < len(self.buffer) - 1
-            ):  # Make sure not to exceed buffer size
-                self.buffer[self.buffer_pos + 1 :] = self.buffer[self.buffer_pos : -1]
+            if self.buffer_pos < len(self.buffer) - 1:  # Make sure not to exceed buffer size
+                self.buffer[self.buffer_pos + 1:] = self.buffer[self.buffer_pos:-1]
                 self.buffer[self.buffer_pos] = ord(char)
                 self.buffer_pos += 1
         else:
@@ -114,6 +111,9 @@ class VFDWordProcessor:
                 self.buffer_pos += 1
 
         self.update_cursor_position()
+
+
+
 
     def delete_char(self):
         """Delete the character at the current position."""
@@ -163,28 +163,37 @@ class VFDWordProcessor:
         self.cursor_pos = self.buffer_pos - self.visible_start
         if self.cursor_pos < 0:
             self.cursor_pos = 0  # Cursor position cannot be negative
-        elif self.cursor_pos > 79:  # Cursor position cannot be greater than 79
-            self.visible_start += 40  # Move the visible window by 40
+        elif self.cursor_pos > 79:  # Cursor position cannot exceed 79
+            self.visible_start += 40  # Move the visible window down by 40 characters (one row)
             self.visible_end += 40
-            self.cursor_pos -= 40  # Adjust the cursor position
+            self.cursor_pos = self.buffer_pos - self.visible_start  # Adjust the cursor position
 
         self.vfd.set_cursor(self.cursor_pos)
         # DEBUG CODE - LEAVE HERE
         print(f"Cursor position: {self.cursor_pos}")
         print(f"Buffer position: {self.buffer_pos}")
+        print(f"Visible start: {self.visible_start}")
+        print(f"Visible end: {self.visible_end}"
+        )
+
 
     def update_display(self):
-        """Update the VFD display based on the buffer."""
-        if self.open_filename:  
-            print(f"File: ", self.open_filename)
-        else:
-            print(f"File: None")
-        visible_text = self.buffer[self.visible_start : self.visible_end].decode(
-            "ascii", "ignore"
-        )
+        """Update the VFD display by replacing newline characters with '`' inline."""
+        visible_text = ""
+
+        # Loop through the visible part of the buffer
+        for i in range(self.visible_start, self.visible_end):
+            char = self.buffer[i]
+            if char == ord('\n'):
+                visible_text += "`"  # Display '`' in place of the newline character
+            else:
+                visible_text += chr(char) if char != 0 else " "  # Convert byte to character or space
+
         self.vfd.clear()
-        self.vfd.write(f"{visible_text:<80}")  # Write the visible text to VFD
+        self.vfd.write(f"{visible_text:<80}")  # Ensure the display always shows 80 characters
         self.vfd.set_cursor(self.cursor_pos)
+
+
     def save_file(self):
         """Save the buffer to a file."""
         self.open_filename = self.file_ops.save_file(self.buffer, self.open_filename)
