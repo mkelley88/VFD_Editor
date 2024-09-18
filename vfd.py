@@ -89,7 +89,7 @@ class VFD:
         '''Resets the VFD display. The display is reset to its power-on state, and the cursor is set to the home position.'''
         self.send_command(VFD_RS)
         time.sleep(0.005)
-        #self.send_data(VFD_CR)
+        self.clear()
     
     def set_cursor(self, pos):
         """
