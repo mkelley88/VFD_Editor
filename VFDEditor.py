@@ -42,75 +42,33 @@ class VFDWordProcessor:
 
     def run(self):
         """
-        The function `run` handles keyboard input for a text editor, allowing for file operations, text
-        editing, and display updates.
+        Main loop to read USB keyboard input, handle control keys, regular input, and update the display.
         """
+        control_key_actions = {
+            "q": self.quit_editor,
+            "s": self.save_file,
+            "o": self.open_file,
+            "O": self.open_file_chooser,
+            "w": self.show_word_count,
+            "j": self.journal_entry
+        }
+
         while True:
             key = self.keyboard_input.get_key()
 
-            # Check if Control-Q is pressed for quitting
-            if self.keyboard_input.control_pressed and key == "q":
-                if self.buffer_altered:
-                    self.vfd.write("Unsaved changes. Save before quitting? (y/n)")
-                    response = self.keyboard_input.get_key()
-                    if response == "y":
-                        self.save_file()  # Save the buffer if user says yes
-                    elif response == "n":
-                        break  # Exit without saving
-                break  # Quit the program gracefully
-            elif self.keyboard_input.control_pressed and key == "s":
-                self.save_file()  # Trigger save function
-                self.buffer_altered = False  # Reset buffer_altered after saving
-                continue
-            elif self.keyboard_input.control_pressed and key == "o":
-                self.open_file()  # Trigger open function
-                self.buffer_altered = False  # Reset buffer_altered after opening a file
-                continue
-            elif self.keyboard_input.control_pressed and key == "O":
-                self.file_ops.choose_file_from_list(
-                    self.buffer
-                )  # Trigger file chooser function
-                self.buffer_altered = False  # Reset buffer_altered after opening a file
-                continue
-            elif self.keyboard_input.control_pressed and key == "w":
-                self.vfd.clear()
-                word_count = self.count_words_in_buffer()  # Trigger word count function
-                self.vfd.write(f"Word Count: {word_count}")  # Display word count
-                self.return_to_main_screen()
-                continue
-            elif self.keyboard_input.control_pressed and key == "j":
-                self.journal_entry()  # Trigger journal entry function
-                continue
+            if self.keyboard_input.control_pressed:
+                if key in control_key_actions:
+                    control_key_actions[key]()  # Call the function mapped to the control key
+                    continue
 
-            # Regular input handling
-            if key == "KEY_INSERT":
-                self.insert_mode = not self.insert_mode
-                self.vfd.write(f"Insert Mode: {'ON' if self.insert_mode else 'OFF'}")
-                time.sleep(1)
-            elif key == "KEY_UP":
-                self.move_cursor_up()
-            elif key == "KEY_DOWN":
-                self.move_cursor_down()
-            elif key == "KEY_LEFT":
-                self.move_cursor_left()
-            elif key == "KEY_RIGHT":
-                self.move_cursor_right()
-            elif key == "KEY_ENTER":
-                self.insert_char("\n")
-                self.buffer_altered = True  # Mark buffer as altered
-            elif key == "KEY_SPACE":
-                self.insert_char(" ")
-                self.buffer_altered = True  # Mark buffer as altered
-            elif key == "KEY_BACKSPACE":
-                self.delete_char()
-                self.buffer_altered = True  # Mark buffer as altered
-            elif key is not None and len(key) == 1:
-                self.insert_char(key)  # Insert the valid character
-                self.buffer_altered = True  # Mark buffer as altered
+            # Handle regular input and update display
+            self.handle_regular_input(key)
 
+            # Display is updated every loop unless handled in functions
             self.update_display()
 
         self.cleanup()  # Cleanup GPIO before exiting
+
 
     def insert_char(self, char):
         """
@@ -239,6 +197,14 @@ class VFDWordProcessor:
         # Decode the used buffer portion and split by whitespace to count words
         used_buffer = self.buffer[:self.calculate_used_buffer()].decode("ascii", "ignore")
         return len(used_buffer.split())
+    
+    def show_word_count(self):
+        """Display the word count in the buffer."""
+        self.vfd.clear()
+        word_count = self.count_words_in_buffer()
+        self.vfd.write(f"Word Count: {word_count}")
+        self.return_to_main_screen()
+
 
     def journal_entry(self):
         """Clear the buffer and screen, then save a new journal entry with a timestamped filename."""
@@ -285,9 +251,54 @@ class VFDWordProcessor:
         self.vfd.write(self.visible_text)
         self.update_display()
 
+    def quit_editor(self):
+        """Handle quitting the editor, checking for unsaved changes."""
+        if self.buffer_altered:
+            self.vfd.write("Unsaved changes. Save before quitting? (y/n)")
+            response = self.keyboard_input.get_key()
+            if response == "y":
+                self.save_file()  # Save the buffer if user says yes
+        self.cleanup()  # Quit the program gracefully
+        exit()  # Safely exit the application
+
+    def open_file_chooser(self):
+        """Open file chooser and reset buffer altered flag."""
+        self.file_ops.choose_file_from_list(self.buffer)
+        self.buffer_altered = False
+
     def cleanup(self):
         """Cleanup resources before quitting."""
         self.vfd.cleanup()  # Ensure GPIO is cleaned up properly
+        
+    def handle_regular_input(self, key):
+        """
+        Handle non-control key input, such as moving the cursor or inserting text.
+        """
+        if key == "KEY_INSERT":
+            self.insert_mode = not self.insert_mode
+            self.vfd.write(f"Insert Mode: {'ON' if self.insert_mode else 'OFF'}")
+            time.sleep(1)
+        elif key == "KEY_UP":
+            self.move_cursor_up()
+        elif key == "KEY_DOWN":
+            self.move_cursor_down()
+        elif key == "KEY_LEFT":
+            self.move_cursor_left()
+        elif key == "KEY_RIGHT":
+            self.move_cursor_right()
+        elif key == "KEY_ENTER":
+            self.insert_char("\n")
+            self.buffer_altered = True
+        elif key == "KEY_SPACE":
+            self.insert_char(" ")
+            self.buffer_altered = True
+        elif key == "KEY_BACKSPACE":
+            self.delete_char()
+            self.buffer_altered = True
+        elif key is not None and len(key) == 1:
+            self.insert_char(key)
+            self.buffer_altered = True
+
 
 
 if __name__ == "__main__":
